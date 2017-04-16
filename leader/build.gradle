@@ -27,6 +27,12 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    test {
+        resources.srcDirs += [file('src/test/resources')]
+    }
+}
+
 dependencies {
     compile 'org.scala-lang:scala-library:2.11.11'
 
