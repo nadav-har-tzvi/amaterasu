@@ -1,0 +1,4 @@
+condaPackages:
+  - packageId: numpy
+    channel: conda-forge
+  - packageId: scipy # If no channel is specified, the "anaconda" default channel will be used

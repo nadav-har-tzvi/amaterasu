@@ -49,9 +49,9 @@ class PySparkRunnerTests extends FlatSpec with Matchers with BeforeAndAfterAll {
   }
 
 
-  "PySparkRunner.executeSource" should "execute simple python code" in {
-    runner.executeSource(getClass.getResource("/simple-python.py").getPath, "test_action1")
-  }
+//  "PySparkRunner.executeSource" should "execute simple python code" in {
+//    runner.executeSource(getClass.getResource("/simple-python.py").getPath, "test_action1")
+//  }
 
   it should "print and trows an errors" in {
     a[java.lang.Exception] should be thrownBy {

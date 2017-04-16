@@ -37,6 +37,17 @@ object DataLoader extends Logging {
 
   }
 
+  def resolveDependencies(dependenciesFilePath: String) : Dependencies = {
+    val ymlMapper = new ObjectMapper(new YAMLFactory())
+    ymlMapper.registerModule(DefaultScalaModule)
+    var depsData: Dependencies = null
+    if (Files.exists(Paths.get(dependenciesFilePath))) {
+      val depsValue = Source.fromFile(dependenciesFilePath).mkString
+      depsData = ymlMapper.readValue(depsValue, classOf[Dependencies])
+    }
+    depsData
+  }
+
   def getExecutorData(env: String): ByteString = {
 
     val ymlMapper = new ObjectMapper(new YAMLFactory())
@@ -45,12 +56,7 @@ object DataLoader extends Logging {
     val envValue = Source.fromFile(s"repo/env/${env}.json").mkString
     val envData = mapper.readValue(envValue, classOf[Environment])
 
-    var depsData: Dependencies = null
-
-    if (Files.exists(Paths.get("repo/deps/jars.yml"))) {
-      val depsValue = Source.fromFile(s"repo/deps/jars.yml").mkString
-      depsData = ymlMapper.readValue(depsValue, classOf[Dependencies])
-    }
+    val depsData = resolveDependencies("repo/deps/jars.yml")
 
     val data = mapper.writeValueAsBytes(new ExecData(envData, depsData))
     ByteString.copyFrom(data)
