@@ -1,36 +1,21 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package org.apache.amaterasu.leader.mesos.schedulers
+package io.shinto.amaterasu.leader.mesos.schedulers
 
 import java.util
+import java.util.{Collections, UUID}
 import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue}
-import java.util.{Collections, UUID}
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.apache.amaterasu.common.configuration.ClusterConfig
-import org.apache.amaterasu.common.dataobjects.ActionData
-import org.apache.amaterasu.common.execution.actions.{Notification, NotificationLevel, NotificationType}
-import org.apache.amaterasu.common.execution.actions.NotificationLevel.NotificationLevel
-import org.apache.amaterasu.enums.ActionStatus
-import org.apache.amaterasu.enums.ActionStatus.ActionStatus
-import org.apache.amaterasu.leader.execution.{JobLoader, JobManager}
-import org.apache.amaterasu.leader.utilities.{DataLoader, HttpServer}
+import io.shinto.amaterasu.common.configuration.ClusterConfig
+import io.shinto.amaterasu.common.dataobjects.ActionData
+import io.shinto.amaterasu.enums.ActionStatus
+import io.shinto.amaterasu.enums.ActionStatus.ActionStatus
+import io.shinto.amaterasu.leader.mesos.executors.DataLoader
+import io.shinto.amaterasu.common.execution.actions._
+import io.shinto.amaterasu.common.execution.actions.NotificationLevel.NotificationLevel
+import io.shinto.amaterasu.leader.execution.{JobLoader, JobManager}
+import io.shinto.amaterasu.leader.utilities.HttpServer
 import org.apache.curator.framework.{CuratorFramework, CuratorFrameworkFactory}
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.apache.mesos.Protos.CommandInfo.URI
@@ -42,7 +27,7 @@ import scala.collection.concurrent
 import scala.collection.concurrent.TrieMap
 
 /**
-  * The JobScheduler is a Mesos implementation. It is in charge of scheduling the execution of
+  * The JobScheduler is a mesos implementation. It is in charge of scheduling the execution of
   * Amaterasu actions for a specific job
   */
 class JobScheduler extends AmaterasuScheduler {
@@ -78,7 +63,7 @@ class JobScheduler extends AmaterasuScheduler {
 
   def disconnected(driver: SchedulerDriver) {}
 
-  def frameworkMessage(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, data: Array[Byte]): Unit = {
+  def frameworkMessage(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, data: Array[Byte]) = {
 
     val notification = mapper.readValue(data, classOf[Notification])
 
@@ -92,7 +77,7 @@ class JobScheduler extends AmaterasuScheduler {
 
   }
 
-  def statusUpdate(driver: SchedulerDriver, status: TaskStatus): Unit = {
+  def statusUpdate(driver: SchedulerDriver, status: TaskStatus) = {
 
     status.getState match {
       case TaskState.TASK_RUNNING => jobManager.actionStarted(status.getTaskId.getValue)
@@ -114,9 +99,9 @@ class JobScheduler extends AmaterasuScheduler {
       resources.count(r => r.getName == "mem" && r.getScalar.getValue >= config.Jobs.Tasks.mem) > 0
   }
 
-  def offerRescinded(driver: SchedulerDriver, offerId: OfferID): Unit = {
+  def offerRescinded(driver: SchedulerDriver, offerId: OfferID) = {
 
-    val actionId = offersToTaskIds(offerId.getValue)
+    val actionId = offersToTaskIds.get(offerId.getValue).get
     jobManager.reQueueAction(actionId)
 
   }
@@ -146,7 +131,7 @@ class JobScheduler extends AmaterasuScheduler {
             // on a slave level to efficiently handle slave loses
             executionMap.putIfAbsent(offer.getSlaveId.toString, new ConcurrentHashMap[String, ActionStatus].asScala)
 
-            val slaveActions = executionMap(offer.getSlaveId.toString)
+            val slaveActions = executionMap.get(offer.getSlaveId.toString).get
             slaveActions.put(taskId.getValue, ActionStatus.started)
 
             // searching for an executor that already exist on the slave, if non exist
@@ -163,14 +148,10 @@ class JobScheduler extends AmaterasuScheduler {
               }
               else {
 
-                val execData = DataLoader.getExecutorData(env)
-                //TODO: wait for Eyal's refactoring to extract the containers params
-                //val extraJavaOps = execData...
-
                 val command = CommandInfo
                   .newBuilder
                   .setValue(
-                    s"""$awsEnv env AMA_NODE=${sys.env("AMA_NODE")} env MESOS_NATIVE_JAVA_LIBRARY=/usr/lib/libmesos.so env SPARK_EXECUTOR_URI=http://${sys.env("AMA_NODE")}:${config.Webserver.Port}/dist/spark-${config.Webserver.sparkVersion}.tgz java -cp executor-0.2.0-incubating-all.jar:spark-${config.Webserver.sparkVersion}/jars/* -Dscala.usejavacp=true -Djava.library.path=/usr/lib io.shinto.amaterasu.executor.mesos.executors.ActionsExecutorLauncher ${jobManager.jobId} ${config.master} ${actionData.name}""".stripMargin
+                    s"""$awsEnv env AMA_NODE=${sys.env("AMA_NODE")} env MESOS_NATIVE_JAVA_LIBRARY=/usr/lib/libmesos.so env SPARK_EXECUTOR_URI=http://${sys.env("AMA_NODE")}:${config.Webserver.Port}/dist/spark-${config.Webserver.sparkVersion}.tgz java -cp executor-0.2.0-incubating-all.jar:spark-${config.Webserver.sparkVersion}/lib/* -Dscala.usejavacp=true -Djava.library.path=/usr/lib io.shinto.amaterasu.executor.mesos.executors.ActionsExecutorLauncher ${jobManager.jobId} ${config.master} ${actionData.name}""".stripMargin
                   )
                   .addUris(URI.newBuilder
                     .setValue(s"http://${sys.env("AMA_NODE")}:${config.Webserver.Port}/executor-0.2.0-incubating-all.jar")
@@ -178,28 +159,14 @@ class JobScheduler extends AmaterasuScheduler {
                     .setExtract(false)
                     .build())
                   .addUris(URI.newBuilder()
-                    .setValue(s"http://${sys.env("AMA_NODE")}:${config.Webserver.Port}/spark-2.1.1-bin-hadoop2.7.tgz")
+                    .setValue(s"http://${sys.env("AMA_NODE")}:${config.Webserver.Port}/spark-2.1.0-1-bin-2.7.tgz")
                     .setExecutable(false)
                     .setExtract(true)
                     .build())
-                  .addUris(URI.newBuilder()
-                    .setValue(s"http://${sys.env("AMA_NODE")}:${config.Webserver.Port}/Miniconda2-latest-Linux-x86_64.sh")
-                    .setExecutable(false)
-                    .setExtract(false)
-                    .build())
-                  .addUris(URI.newBuilder()
-                    .setValue(s"http://${sys.env("AMA_NODE")}:${config.Webserver.Port}/spark_intp.py")
-                    .setExecutable(false)
-                    .setExtract(false)
-                    .build())
-                .addUris(URI.newBuilder()
-                    .setValue(s"http://${sys.env("AMA_NODE")}:${config.Webserver.Port}/runtime.py")
-                    .setExecutable(false)
-                    .setExtract(false)
-                    .build())
+
                 executor = ExecutorInfo
                   .newBuilder
-                  .setData(execData)
+                  .setData(DataLoader.getExecutorData(env))
                   .setName(taskId.getValue)
                   .setExecutorId(ExecutorID.newBuilder().setValue(taskId.getValue + "-" + UUID.randomUUID()))
                   .setCommand(command)
@@ -227,6 +194,9 @@ class JobScheduler extends AmaterasuScheduler {
           else if (jobManager.outOfActions) {
             log.info(s"framework ${jobManager.jobId} execution finished")
 
+            jobManager.jobReport.append(" *                                                                *\n")
+            jobManager.jobReport.append(" ******************************************************************")
+            log.info(jobManager.jobReport.result)
             HttpServer.stop()
             driver.declineOffer(offer.getId)
             driver.stop()
@@ -278,7 +248,7 @@ class JobScheduler extends AmaterasuScheduler {
 
   def reregistered(driver: SchedulerDriver, masterInfo: Protos.MasterInfo) {}
 
-  def printNotification(notification: Notification): Unit = {
+  def printNotification(notification: Notification) = {
 
     var color = Console.WHITE
 
@@ -312,7 +282,7 @@ object JobScheduler {
 
     val scheduler = new JobScheduler()
 
-    HttpServer.start(config.Webserver.Port, s"$home/${config.Webserver.Root}")
+    HttpServer.start(config.Webserver.Port, s"$home/${config.Webserver.Root}", sys.env("AMA_NODE"))
 
     if (!sys.env("AWS_ACCESS_KEY_ID").isEmpty &&
       !sys.env("AWS_SECRET_ACCESS_KEY").isEmpty) {

@@ -1,20 +1,4 @@
 #!/usr/bin/env bash
-#
-#    Licensed to the Apache Software Foundation (ASF) under one or more
-#    contributor license agreements.  See the NOTICE file distributed with
-#    this work for additional information regarding copyright ownership.
-#    The ASF licenses this file to You under the Apache License, Version 2.0
-#    (the "License"); you may not use this file except in compliance with
-#    the License.  You may obtain a copy of the License at
-#
-#       http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-#
 
 BASEDIR=$(dirname "$0")
 
@@ -53,7 +37,7 @@ echo "    / _ \ | '  \ / _\` ||  _|/ -_)| '_|/ _\` |(_-<| || | "
 echo "   /_/ \_\|_|_|_|\__,_| \__|\___||_|  \__,_|/__/ \_,_| "
 echo ""
 echo "    Continuously deployed data pipelines"
-echo "    Version 0.2.0-incubating"
+echo "    Version 0.2.0"
 echo "${NC}"
 echo ""
 
@@ -95,7 +79,7 @@ esac
 done
 
 echo "repo: ${REPO} "
-CMD="java -cp ${BASEDIR}/bin/*-all.jar -Djava.library.path=/usr/lib io.shinto.amaterasu.leader.mesos.JobLauncher --home ${BASEDIR}" #--repo "https://github.com/roadan/amaterasu-job-sample.git" --branch master
+CMD="java -cp ${BASEDIR}/bin/*.jar -Djava.library.path=/usr/lib io.shinto.amaterasu.leader.mesos.JobLauncher --home ${BASEDIR}" #--repo "https://github.com/roadan/amaterasu-job-sample.git" --branch master
 
 if [ -n "$REPO" ]; then
     CMD+=" --repo ${REPO}"
@@ -123,12 +107,12 @@ fi
 
 if ! ls ${BASEDIR}/dist/spark*.tgz 1> /dev/null 2>&1; then
     echo "${bold} Fetching spark distributable ${NC}"
-    wget https://d3kbcqa49mib13.cloudfront.net/spark-2.1.1-bin-hadoop2.7.tgz -P ${BASEDIR}/dist
+    wget https://downloads.mesosphere.com/spark/assets/spark-2.1.0-1-bin-2.7.tgz -P ${BASEDIR}/dist
 fi
 
 echo $CMD
 
-eval $CMD | grep "===>"
+eval $CMD #| grep "===>"
 kill $SERVER_PID
 
 echo ""
