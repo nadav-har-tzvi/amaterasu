@@ -1,19 +1,18 @@
 package org.apache.spark.repl.amaterasu.runners.spark
 
 import java.io.ByteArrayOutputStream
+import java.util
 
 import io.shinto.amaterasu.common.execution.actions.Notifier
 import io.shinto.amaterasu.common.logging.Logging
 import io.shinto.amaterasu.common.runtime.Environment
 import io.shinto.amaterasu.executor.runtime.AmaContext
 import io.shinto.amaterasu.sdk.AmaterasuRunner
-import org.apache.spark.rdd.RDD
-import org.apache.spark.repl.amaterasu.ReplUtils
-import org.apache.spark.sql.{ Dataset, SparkSession}
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 import scala.io.Source
-import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter.{IMain, Results}
 
 class ResHolder(var value: Any)
@@ -23,22 +22,26 @@ class SparkScalaRunner(var env: Environment,
                        var interpreter: IMain,
                        var outStream: ByteArrayOutputStream,
                        var spark: SparkSession,
-                       var notifier: Notifier) extends Logging with AmaterasuRunner {
+                       var notifier: Notifier,
+                       var jars: Seq[String]) extends Logging with AmaterasuRunner {
+
+  private def scalaOptionError(msg: String): Unit = {
+    notifier.error("", msg)
+  }
 
   override def getIdentifier = "scala"
 
-  // This is the amaterasu spark configuration need to rethink the name
-  val settings = new Settings()
   val holder = new ResHolder(null)
 
-  override def executeSource(actionSource: String, actionName: String): Unit = {
+  override def executeSource(actionSource: String, actionName: String, exports: util.Map[String, String]): Unit = {
     val source = Source.fromString(actionSource)
-    interpretSources(source, actionName)
+    interpretSources(source, actionName, exports.asScala.toMap)
   }
 
-  def interpretSources(source: Source, actionName: String): Unit = {
+  def interpretSources(source: Source, actionName: String, exports: Map[String, String]): Unit = {
 
     notifier.info(s"================= started action $actionName =================")
+
 
     for (line <- source.getLines()) {
 
@@ -54,8 +57,6 @@ class SparkScalaRunner(var env: Environment,
 
           val intresult = interpreter.interpret(line)
 
-          //if (interpreter.prevRequestList.last.value.exists) {
-
           val result = interpreter.prevRequestList.last.lineRep.call("$result")
 
           // dear future me (probably Karel or Tim) this is what we
@@ -69,24 +70,23 @@ class SparkScalaRunner(var env: Environment,
 
               notifier.success(line)
 
-              //val resultName = interpreter.prevRequestList.last.value.name.toString
               val resultName = interpreter.prevRequestList.last.termNames.last
 
-              if (result != null) {
-                result match {
-                  case ds: Dataset[_] =>
-                    log.debug(s"persisting DataFrame: $resultName")
-                    interpreter.interpret(s"""$resultName.write.mode(SaveMode.Overwrite).parquet("${env.workingDir}/$jobId/$actionName/$resultName")""")
-                    log.debug(outStream.toString)
-                    log.debug(s"persisted DataFrame: $resultName")
+              if (exports.contains(resultName.toString)) {
 
-                  case rdd: RDD[_] =>
-                    log.debug(s"persisting RDD: $resultName")
-                    interpreter.interpret(s"""$resultName.saveAsObjectFile("${env.workingDir}/$jobId/$actionName/$resultName")""")
-                    log.debug(outStream.toString)
-                    log.debug(s"persisted RDD: $resultName")
+                val format = exports(resultName.toString)
 
-                  case _ => println(result)
+                if (result != null) {
+
+                  result match {
+                    case ds: Dataset[_] =>
+                      log.debug(s"persisting DataFrame: $resultName")
+                      interpreter.interpret(s"""$resultName.write.mode(SaveMode.Overwrite).format("$format").save("${env.workingDir}/$jobId/$actionName/$resultName")""")
+
+                      log.debug(s"persisted DataFrame: $resultName")
+
+                    case _ => println(result)
+                  }
                 }
               }
 
@@ -116,6 +116,7 @@ class SparkScalaRunner(var env: Environment,
     interpreter.interpret("import scala.util.control.Exception._")
     interpreter.interpret("import org.apache.spark.{ SparkContext, SparkConf }")
     interpreter.interpret("import org.apache.spark.sql.SQLContext")
+    interpreter.interpret("import org.apache.spark.sql.{ Dataset, SparkSession }")
     interpreter.interpret("import org.apache.spark.sql.SaveMode")
     interpreter.interpret("import io.shinto.amaterasu.executor.runtime.AmaContext")
     interpreter.interpret("import io.shinto.amaterasu.common.runtime.Environment")
@@ -130,11 +131,13 @@ class SparkScalaRunner(var env: Environment,
     contextStore.put("sc", sc)
     contextStore.put("sqlContext", sqlContext)
     contextStore.put("env", env)
+    contextStore.put("spark", spark)
     contextStore.put("ac", AmaContext)
 
     interpreter.interpret("val sc = _contextStore(\"sc\").asInstanceOf[SparkContext]")
     interpreter.interpret("val sqlContext = _contextStore(\"sqlContext\").asInstanceOf[SQLContext]")
     interpreter.interpret("val env = _contextStore(\"env\").asInstanceOf[Environment]")
+    interpreter.interpret("val spark = _contextStore(\"spark\").asInstanceOf[SparkSession]")
     interpreter.interpret("val AmaContext = _contextStore(\"ac\").asInstanceOf[AmaContext]")
     interpreter.interpret("import sqlContext.implicits._")
 
@@ -153,56 +156,8 @@ object SparkScalaRunner extends Logging {
             outStream: ByteArrayOutputStream,
             notifier: Notifier,
             jars: Seq[String]): SparkScalaRunner = {
-    /*<<<<<<< pyspark-support
 
-        val result = new SparkScalaRunner()
-        result.env = env
-        result.jobId = jobId
-        result.outStream = new ByteArrayOutputStream()
-        result.notifier = notifier
-
-        val intp = ReplUtils.creteInterprater(env, jobId, result.outStream, jars)
-
-        result.interpreter = intp._1
-
-        result.sc = createSparkContext(env, sparkAppName, intp._2, jars)
-
-        result.initializeAmaContext(env)
-        result
-      }
-
-      def createSparkContext(env: Environment, sparkAppName: String, classServerUri: String, jars: Seq[String]): SparkContext = {
-
-        log.debug(s"creating SparkContext with master ${env.master}")
-
-        val conf = new SparkConf(true)
-          .setMaster(env.master)
-          .setAppName(sparkAppName)
-          .set("spark.executor.uri", s"http://${sys.env("AMA_NODE")}:8000/spark-1.6.1-2.tgz")
-          .set("spark.driver.memory", "512m")
-          .set("spark.repl.class.uri", classServerUri)
-          .set("spark.mesos.coarse", "true")
-          .set("spark.executor.instances", "2")
-          .set("spark.cores.max", "5")
-          .set("spark.hadoop.validateOutputSpecs", "false")
-          .setExecutorEnv('PYTHONPATH',
-        val sc = new SparkContext(conf)
-        for (jar <- jars) {
-          sc.addJar(jar) // and this is how my childhood was ruined :(
-        }
-        val hc = sc.hadoopConfiguration
-
-        if (!sys.env("AWS_ACCESS_KEY_ID").isEmpty &&
-          !sys.env("AWS_SECRET_ACCESS_KEY").isEmpty) {
-
-          hc.set("fs.s3n.impl", "org.apache.hadoop.fs.s3native.NativeS3FileSystem")
-          hc.set("fs.s3n.awsAccessKeyId", sys.env("AWS_ACCESS_KEY_ID"))
-          hc.set("fs.s3n.awsSecretAccessKey", sys.env("AWS_SECRET_ACCESS_KEY"))
-        }
-        sc
-
-    =======*/
-    new SparkScalaRunner(env, jobId, ReplUtils.getOrCreateScalaInterperter(outStream, jars), outStream, spark, notifier)
+    new SparkScalaRunner(env, jobId, SparkRunnerHelper.getOrCreateScalaInterperter(outStream, jars), outStream, spark, notifier, jars)
 
   }
 
