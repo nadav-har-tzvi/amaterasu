@@ -1,21 +1,17 @@
 package io.shinto.amaterasu.executor.execution.actions.runners.spark
 
 import java.io.{ByteArrayOutputStream, File}
+import java.util
 
 import io.shinto.amaterasu.common.dataobjects.ExecData
 import io.shinto.amaterasu.common.execution.actions.Notifier
 import io.shinto.amaterasu.common.execution.dependencies.Dependencies
 import io.shinto.amaterasu.sdk.{AmaterasuRunner, RunnersProvider}
 import io.shinto.amaterasu.executor.execution.actions.runners.spark.PySpark.PySparkRunner
-
-import org.apache.spark.repl.amaterasu.ReplUtils
-import org.apache.spark.repl.amaterasu.runners.spark.SparkScalaRunner
-
+import org.apache.spark.repl.amaterasu.runners.spark.{SparkRunnerHelper, SparkScalaRunner}
 import org.eclipse.aether.util.artifact.JavaScopes
-
 import org.sonatype.aether.repository.RemoteRepository
 import org.sonatype.aether.util.artifact.DefaultArtifact
-
 import com.jcabi.aether.Aether
 
 import scala.collection.JavaConversions._
@@ -25,23 +21,31 @@ import scala.collection.concurrent.TrieMap
 /**
   * Created by roadan on 2/9/17.
   */
-class SparkRunnersProvider extends RunnersProvider {// with Logging {
+class SparkRunnersProvider extends RunnersProvider {
 
   private val runners = new TrieMap[String, AmaterasuRunner]
+  private var conf: Map[String, Any] = _
 
-  override def init(data: ExecData, jobId: String, outStream: ByteArrayOutputStream, notifier: Notifier, executorId: String) : Unit = {
+  override def init(data: ExecData, jobId: String, outStream: ByteArrayOutputStream, notifier: Notifier, executorId: String): Unit = {
 
-    var jars = Seq[String]()
+    // i've added the current jar as a jar to be distributed as a covfefe attempt to overcome the dpendency issue we've run into.
+    var jars = Seq[String]("executor-0.2.0-incubating-all.jar")
+
     if (data.deps != null) {
       jars ++= getDependencies(data.deps)
     }
 
-    //val classServerUri = ReplUtils.getOrCreateClassServerUri(outStream, jars)
+    conf = data.configurations("spark")
 
     val sparkAppName = s"job_${jobId}_executor_$executorId"
-    //log.debug(s"creating SparkContext with master ${data.env.master}")
+
+    for ((k, v) <- conf) {
+      notifier.info(s"key: $k, value: $v")
+    }
+
+    SparkRunnerHelper.notifier = notifier
     val spark = SparkRunnerHelper.createSpark(data.env, sparkAppName, jars)
-    val sparkContext = spark.sparkContext
+
     val sparkScalaRunner = SparkScalaRunner(data.env, jobId, spark, outStream, notifier, jars)
     sparkScalaRunner.initializeAmaContext(data.env)
 
@@ -73,7 +77,7 @@ class SparkRunnersProvider extends RunnersProvider {// with Logging {
       aether.resolve(
         new DefaultArtifact(a.groupId, a.artifactId, "", "jar", a.version),
         JavaScopes.RUNTIME
-      ).map(a => a) // .toBuffer[Artifact]
+      ).map(a => a)
     }).map(x => x.getFile.getAbsolutePath)
 
   }
