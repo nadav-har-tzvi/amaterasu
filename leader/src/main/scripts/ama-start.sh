@@ -7,7 +7,15 @@ export AMA_NODE="$(hostname)"
 #cd /mesos-dependencies/ && nohup java -cp ${BASEDIR}/amaterasu-assembly-0.1.0.jar -Djava.library.path=/usr/lib io.shinto.amaterasu.utilities.HttpServer  &
 #SERVER_PID=$!
 
-
+echo "Verifying installation of Spark and Miniconda"
+if [ ! -f ./dist/spark-1.6.1-2.tgz ]; then
+    echo "Spark does not exist, downloading"
+    wget -P ./dist https://downloads.mesosphere.com/spark/assets/spark-1.6.1-2.tgz
+fi
+if [ ! -f ./dist/Miniconda2-latest-Linux-x86_64.sh ]; then
+    echo "Miniconda does not exist, downloading"
+    wget -P ./dist https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+fi
 
 echo "serving amaterasu from /ama/lib on user supplied port"
 popd >/dev/null
