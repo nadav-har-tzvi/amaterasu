@@ -7,13 +7,17 @@ import io.shinto.amaterasu.common.execution.actions.Notifier
 import io.shinto.amaterasu.common.execution.dependencies.{Dependencies, PythonPackage}
 import io.shinto.amaterasu.common.logging.Logging
 import io.shinto.amaterasu.sdk.{AmaterasuRunner, RunnersProvider}
-import org.apache.spark.repl.amaterasu.ReplUtils
-import org.eclipse.aether.util.artifact.JavaScopes
-import com.jcabi.aether.Aether
 import io.shinto.amaterasu.executor.execution.actions.runners.spark.PySpark.PySparkRunner
+
+import org.apache.spark.repl.amaterasu.ReplUtils
 import org.apache.spark.repl.amaterasu.runners.spark.SparkScalaRunner
+
+import org.eclipse.aether.util.artifact.JavaScopes
+
 import org.sonatype.aether.repository.RemoteRepository
 import org.sonatype.aether.util.artifact.DefaultArtifact
+
+import com.jcabi.aether.Aether
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -31,7 +35,7 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
     (e: String) => log.error(e)
   )
 
-  override def init(data: ExecData, jobId: String, outStream: ByteArrayOutputStream, notifier: Notifier, executorId: String) = {
+  override def init(data: ExecData, jobId: String, outStream: ByteArrayOutputStream, notifier: Notifier, executorId: String) : Unit = {
 
     var jars = Seq[String]()
     if (data.deps != null) {
@@ -55,12 +59,8 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
 
   override def getGroupIdentifier: String = "spark"
 
-  override def getRunner(id: String): AmaterasuRunner = {
+  override def getRunner(id: String): AmaterasuRunner = runners(id)
 
-    runners.get(id).get
-
-  }
-  
   private def installAnacondaPackage(pythonPackage: PythonPackage): Unit = {
     if (pythonPackage.channel == "anaconda") {
       Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda install -y ${pythonPackage.packageId}") ! shellLogger
