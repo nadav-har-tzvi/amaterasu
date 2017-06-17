@@ -5,8 +5,8 @@ import scala.collection.mutable.ListBuffer
 /**
   * Created by roadan on 8/28/16.
   */
-case class Dependencies(repos: ListBuffer[Repo], artifacts: List[Artifact], condaPackages: List[CondaPackage] = null, condaReqFile: CondaReqFile = null)
+case class Dependencies(repos: ListBuffer[Repo], artifacts: List[Artifact], pythonPackages: Option[List[PythonPackage]] = None, condaReqFile: Option[PythonReqFile] = None, pipReqFile: Option[PythonReqFile] = None)
 case class Repo(id: String, `type`: String, url: String)
 case class Artifact(groupId: String, artifactId: String, version: String)
-case class CondaPackage(packageId: String, channel: String = "anaconda")
-case class CondaReqFile(path: String)
+case class PythonPackage(packageId: String, index: String = "anaconda", channel: String = "anaconda")
+case class PythonReqFile(path: String)

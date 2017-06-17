@@ -18,6 +18,10 @@ dependencies {
     compile 'org.scala-lang:scala-library:2.10.5'
     compile group: 'com.github.nscala-time', name: 'nscala-time_2.10', version: '2.2.0'
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.9'
+//    compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.1'
+    compile group: 'ch.qos.logback', name:'logback-classic', version: '1.0.9'
+    compile group: 'ch.qos.logback', name:'logback-core', version: '1.0.9'
+
 
     // currently we have to use this specific mesos version to prevent from
     // clashing with spark
@@ -32,7 +36,15 @@ dependencies {
     testCompile 'org.scala-lang:scala-library:2.10.5'
 }
 
-task copyToHome() {
+sourceSets {
+    main {
+        resources.srcDirs += [file('src/main/resources')]
+    }
+}
+
+task copyToHome(type: Copy) {
+    from 'build/resources/main'
+    into '../build/amaterasu/resources'
 }
 
 

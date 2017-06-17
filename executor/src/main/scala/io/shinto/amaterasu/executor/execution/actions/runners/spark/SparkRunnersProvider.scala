@@ -1,10 +1,10 @@
 package io.shinto.amaterasu.executor.execution.actions.runners.spark
 
-import java.io.{ByteArrayOutputStream, File}
+import java.io.{ByteArrayOutputStream, File, PrintWriter, StringWriter}
 
 import io.shinto.amaterasu.common.dataobjects.ExecData
 import io.shinto.amaterasu.common.execution.actions.Notifier
-import io.shinto.amaterasu.common.execution.dependencies.Dependencies
+import io.shinto.amaterasu.common.execution.dependencies.{Dependencies, PythonPackage}
 import io.shinto.amaterasu.common.logging.Logging
 import io.shinto.amaterasu.sdk.{AmaterasuRunner, RunnersProvider}
 import org.apache.spark.repl.amaterasu.ReplUtils
@@ -18,13 +18,18 @@ import org.sonatype.aether.util.artifact.DefaultArtifact
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import sys.process._
 
 /**
   * Created by roadan on 2/9/17.
   */
-class SparkRunnersProvider extends RunnersProvider {// with Logging {
+class SparkRunnersProvider extends RunnersProvider with Logging {
 
   private val runners = new TrieMap[String, AmaterasuRunner]
+  private val shellLogger = ProcessLogger(
+    (o: String) => log.info(o),
+    (e: String) => log.error(e)
+  )
 
   override def init(data: ExecData, jobId: String, outStream: ByteArrayOutputStream, notifier: Notifier, executorId: String) = {
 
@@ -55,6 +60,50 @@ class SparkRunnersProvider extends RunnersProvider {// with Logging {
     runners.get(id).get
 
   }
+  
+  private def installAnacondaPackage(pythonPackage: PythonPackage): Unit = {
+    if (pythonPackage.channel == "anaconda") {
+      Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda install -y ${pythonPackage.packageId}") ! shellLogger
+    } else {
+      Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda install -y -c ${pythonPackage.channel} ${pythonPackage.packageId}") ! shellLogger
+    }
+  }
+
+  private def installPyPiPackage(pythonPackage: PythonPackage): Unit = {
+    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda skeleton pypi ${pythonPackage.packageId}") ! shellLogger
+    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda build ${pythonPackage.packageId}") ! shellLogger
+  }
+
+  private def installAnacondaOnNode(): Unit = {
+    log.debug(s"Preparing to install Miniconda")
+    Seq("bash", "-c", "sh Miniconda2-latest-Linux-x86_64.sh -b -p $PWD/miniconda") ! shellLogger
+    Seq("bash", "-c", "$PWD/miniconda/bin/python -m conda install -y conda-build") ! shellLogger
+  }
+
+  private def loadPythonDependencies(deps: Dependencies) = {
+    installAnacondaOnNode()
+    if (deps.pythonPackages.isDefined) {
+      try {
+        deps.pythonPackages.head.foreach(pack => {
+          pack.index.toLowerCase match {
+            case "anaconda" => installAnacondaPackage(pack)
+            case "pypi" => installPyPiPackage(pack)
+          }
+        })
+      }
+      catch {
+        case rte: RuntimeException =>
+          val sw = new StringWriter
+          rte.printStackTrace(new PrintWriter(sw))
+          log.error(s"Failed to activate environment (runtime) - cause: ${rte.getCause}, message: ${rte.getMessage}, Stack: \n${sw.toString}")
+        case e: Exception =>
+          val sw = new StringWriter
+          e.printStackTrace(new PrintWriter(sw))
+          log.error(s"Failed to activate environment (other) - type: ${e.getClass.getName}, cause: ${e.getCause}, message: ${e.getMessage}, Stack: \n${sw.toString}")
+      }
+    }
+
+  }
 
   private def getDependencies(deps: Dependencies): Seq[String] = {
 
@@ -69,6 +118,7 @@ class SparkRunnersProvider extends RunnersProvider {// with Logging {
       )).toList.asJava
 
     val aether = new Aether(remotes, repo)
+    loadPythonDependencies(deps)
 
     deps.artifacts.flatMap(a => {
       aether.resolve(
@@ -76,6 +126,7 @@ class SparkRunnersProvider extends RunnersProvider {// with Logging {
         JavaScopes.RUNTIME
       ).map(a => a) // .toBuffer[Artifact]
     }).map(x => x.getFile.getAbsolutePath)
+
 
   }
 }

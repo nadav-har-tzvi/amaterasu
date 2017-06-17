@@ -13,14 +13,14 @@ class DataLoaderTests extends FlatSpec with Matchers {
     var url = getClass.getResource("/jars-only-conda1.yml")
     val path = url.getPath
     val dependencies = DataLoader.resolveDependencies(path)
-    dependencies.condaPackages.length should not be 0
+    dependencies.pythonPackages.head.length should not be 0
   }
 
   "A parsed jars file with only conda req file" should "result in a dependencies that include a reqFile path" in {
     var url = getClass.getResource("/jars-only-conda2.yml")
     val path = url.getPath
     val dependencies = DataLoader.resolveDependencies(path)
-    dependencies.condaReqFile.path should not be null
+    dependencies.condaReqFile.head.path should not be null
   }
 
 }
