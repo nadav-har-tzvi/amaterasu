@@ -42,7 +42,6 @@ class SparkScalaRunner(var env: Environment,
 
     notifier.info(s"================= started action $actionName =================")
 
-
     for (line <- source.getLines()) {
 
       if (!line.isEmpty) {
