@@ -1,17 +1,19 @@
 package io.shinto.amaterasu.executor.execution.actions.runners.spark
 
 import java.io.{ByteArrayOutputStream, File}
-import java.util
 
 import io.shinto.amaterasu.common.dataobjects.ExecData
 import io.shinto.amaterasu.common.execution.actions.Notifier
 import io.shinto.amaterasu.common.execution.dependencies.Dependencies
 import io.shinto.amaterasu.sdk.{AmaterasuRunner, RunnersProvider}
 import io.shinto.amaterasu.executor.execution.actions.runners.spark.PySpark.PySparkRunner
+
 import org.apache.spark.repl.amaterasu.runners.spark.{SparkRunnerHelper, SparkScalaRunner}
+
 import org.eclipse.aether.util.artifact.JavaScopes
 import org.sonatype.aether.repository.RemoteRepository
 import org.sonatype.aether.util.artifact.DefaultArtifact
+
 import com.jcabi.aether.Aether
 
 import scala.collection.JavaConversions._
@@ -25,22 +27,23 @@ class SparkRunnersProvider extends RunnersProvider {
 
   private val runners = new TrieMap[String, AmaterasuRunner]
   private var conf: Map[String, Any] = _
+  private var executorEnv: Map[String, Any] = _
 
   override def init(data: ExecData, jobId: String, outStream: ByteArrayOutputStream, notifier: Notifier, executorId: String): Unit = {
 
-    // i've added the current jar as a jar to be distributed as a covfefe attempt to overcome the dpendency issue we've run into.
-    var jars = Seq[String]("executor-0.2.0-incubating-all.jar")
+    var jars = Seq.empty[String]
 
     if (data.deps != null) {
       jars ++= getDependencies(data.deps)
     }
 
     conf = data.configurations("spark")
+    executorEnv = data.configurations("spark_exec")
 
     val sparkAppName = s"job_${jobId}_executor_$executorId"
-    
+
     SparkRunnerHelper.notifier = notifier
-    val spark = SparkRunnerHelper.createSpark(data.env, sparkAppName, jars)
+    val spark = SparkRunnerHelper.createSpark(data.env, sparkAppName, jars, conf, executorEnv)
 
     val sparkScalaRunner = SparkScalaRunner(data.env, jobId, spark, outStream, notifier, jars)
     sparkScalaRunner.initializeAmaContext(data.env)
