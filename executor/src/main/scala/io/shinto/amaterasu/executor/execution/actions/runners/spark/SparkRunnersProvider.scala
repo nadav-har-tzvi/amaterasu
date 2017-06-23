@@ -45,7 +45,7 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
     val classServerUri = ReplUtils.getOrCreateClassServerUri(outStream, jars)
 
     val sparkAppName = s"job_${jobId}_executor_$executorId"
-    //log.debug(s"creating SparkContext with master ${data.env.master}")
+    log.info(s"creating SparkContext with master ${data.env.master}")
     val sparkContext = SparkRunnerHelper.createSparkContext(data.env, sparkAppName, classServerUri, jars)
 
     val sparkScalaRunner = SparkScalaRunner(data.env, jobId, sparkContext, outStream, notifier, jars)
@@ -62,7 +62,8 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
   override def getRunner(id: String): AmaterasuRunner = runners(id)
 
   private def installAnacondaPackage(pythonPackage: PythonPackage): Unit = {
-    if (pythonPackage.channel == "anaconda") {
+    log.info(s"installAnacondaPackage: $pythonPackage")
+    if (pythonPackage.channel.getOrElse("anaconda") == "anaconda") {
       Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda install -y ${pythonPackage.packageId}") ! shellLogger
     } else {
       Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda install -y -c ${pythonPackage.channel} ${pythonPackage.packageId}") ! shellLogger
@@ -70,22 +71,26 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
   }
 
   private def installPyPiPackage(pythonPackage: PythonPackage): Unit = {
-    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda skeleton pypi ${pythonPackage.packageId}") ! shellLogger
-    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda build ${pythonPackage.packageId}") ! shellLogger
+    log.warn(s"PyPi Packages are not supported yet. If you really need this feature, please contact us!")
+//    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda skeleton pypi ${pythonPackage.packageId}") ! shellLogger
+//    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda build ${pythonPackage.packageId}") ! shellLogger
   }
 
   private def installAnacondaOnNode(): Unit = {
     log.debug(s"Preparing to install Miniconda")
     Seq("bash", "-c", "sh Miniconda2-latest-Linux-x86_64.sh -b -p $PWD/miniconda") ! shellLogger
     Seq("bash", "-c", "$PWD/miniconda/bin/python -m conda install -y conda-build") ! shellLogger
+    Seq("bash", "-c", "$PWD/miniconda/bin/python -m conda update -y") ! shellLogger
   }
 
   private def loadPythonDependencies(deps: Dependencies) = {
     installAnacondaOnNode()
     if (deps.pythonPackages.isDefined) {
       try {
+        log.info(s"deps: $deps")
         deps.pythonPackages.head.foreach(pack => {
-          pack.index.toLowerCase match {
+          log.info(s"PyPackage: $pack, index: ${pack.index}")
+          pack.index.getOrElse("anaconda").toLowerCase match {
             case "anaconda" => installAnacondaPackage(pack)
             case "pypi" => installPyPiPackage(pack)
           }

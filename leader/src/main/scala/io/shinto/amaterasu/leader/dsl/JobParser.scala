@@ -46,7 +46,6 @@ object JobParser {
     val mapper = new ObjectMapper(new YAMLFactory())
 
     val job = mapper.readTree(maki)
-
     // loading the job details
     val manager = JobManager(jobId, job.path("job-name").asText, actionsQueue, client)
 

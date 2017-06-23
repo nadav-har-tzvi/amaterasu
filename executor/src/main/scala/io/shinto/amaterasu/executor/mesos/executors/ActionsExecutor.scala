@@ -75,6 +75,7 @@ class ActionsExecutor extends Executor with Logging {
   override def launchTask(driver: ExecutorDriver, taskInfo: TaskInfo) = {
 
     notifier.info(s"launching task: ${taskInfo.getTaskId.getValue}")
+    notifier.info(s"task data: $taskInfo")
     log.debug(s"launching task: $taskInfo")
     val status = TaskStatus.newBuilder
       .setTaskId(taskInfo.getTaskId)
@@ -93,7 +94,6 @@ class ActionsExecutor extends Executor with Logging {
         .setState(TaskState.TASK_RUNNING).build()
 
       driver.sendStatusUpdate(status)
-
       val runner = providersFactory.getRunner(taskData.groupId, taskData.typeId)
       runner match {
         case Some(r) => r.executeSource(taskData.src, actionName)
