@@ -26,11 +26,17 @@ export AMA_NODE="$(hostname)"
 echo "Verifying installation of Spark and Miniconda"
 if [ ! -f ./dist/spark-1.6.1-2.tgz ]; then
     echo "Spark does not exist, downloading"
-    wget -P ./dist https://downloads.mesosphere.com/spark/assets/spark-1.6.1-2.tgz
+#    wget -P ./dist https://downloads.mesosphere.com/spark/assets/spark-1.6.1-2.tgz
+    cp ~/spark-1.6.1-2.tgz ./dist
 fi
 if [ ! -f ./dist/Miniconda2-latest-Linux-x86_64.sh ]; then
     echo "Miniconda does not exist, downloading"
-    wget -P ./dist https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+#    wget -P ./dist https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+    cp ~/Miniconda2-latest-Linux-x86_64.sh ./dist
+fi
+
+if [ -f ./bin/leader-0.2.0.jar ]; then
+    rm ./bin/leader-0.2.0.jar
 fi
 
 echo "serving amaterasu from /ama/lib on user supplied port"
