@@ -70,11 +70,12 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
     }
   }
 
-  private def installPyPiPackage(pythonPackage: PythonPackage): Unit = {
-    log.warn(s"PyPi Packages are not supported yet. If you really need this feature, please contact us!")
-//    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda skeleton pypi ${pythonPackage.packageId}") ! shellLogger
-//    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda build ${pythonPackage.packageId}") ! shellLogger
-  }
+  // TODO: consider adding PyPi, for some reason skeleton is broken
+//  private def installPyPiPackage(pythonPackage: PythonPackage): Unit = {
+//    log.warn(s"PyPi Packages are not supported yet. If you really need this feature, please contact us!")
+////    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda skeleton pypi ${pythonPackage.packageId}") ! shellLogger
+////    Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda build ${pythonPackage.packageId}") ! shellLogger
+//  }
 
   private def installAnacondaOnNode(): Unit = {
     log.debug(s"Preparing to install Miniconda")
@@ -92,7 +93,7 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
           log.info(s"PyPackage: $pack, index: ${pack.index}")
           pack.index.getOrElse("anaconda").toLowerCase match {
             case "anaconda" => installAnacondaPackage(pack)
-            case "pypi" => installPyPiPackage(pack)
+//            case "pypi" => installPyPiPackage(pack)
           }
         })
       }

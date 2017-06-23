@@ -1,19 +1,18 @@
 package io.shinto.amaterasu.leader.mesos.executors
 
-import java.nio.file.{ Files, Paths }
+import java.io.File
+import java.nio.file.{Files, Paths}
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-
 import io.shinto.amaterasu.common.logging.Logging
-import io.shinto.amaterasu.common.execution.dependencies.Dependencies
+import io.shinto.amaterasu.common.execution.dependencies.{Artifact, Dependencies, PythonPackage, Repo}
 import io.shinto.amaterasu.common.runtime.Environment
-
 import org.apache.mesos.protobuf.ByteString
-
 import io.shinto.amaterasu.common.dataobjects._
 
+import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 /**
@@ -48,6 +47,24 @@ object DataLoader extends Logging {
     depsData
   }
 
+  /**
+    * Takes in a list of dependencies and merges them into a single Dependency object
+    * @param allDepsData: A collection of independent dependencies
+    * @return A single Dependencies object that contains the contents of supplied dependencies
+    */
+  def mergeDependencies(allDepsData: List[Dependencies]): Dependencies = {
+    val reps = new ListBuffer[Repo]
+    val artifacts = new ListBuffer[Artifact]
+    val pyPackages = new ListBuffer[PythonPackage]
+    for (dep <- allDepsData) {
+      reps ++= dep.repos
+      artifacts ++= dep.artifacts
+      pyPackages ++= dep.pythonPackages.getOrElse(new ListBuffer[PythonPackage])
+    }
+    val mergedDeps = Dependencies(reps, artifacts.toList, Option(pyPackages.toList))
+    mergedDeps
+  }
+
   def getExecutorData(env: String): ByteString = {
 
     val ymlMapper = new ObjectMapper(new YAMLFactory())
@@ -55,10 +72,10 @@ object DataLoader extends Logging {
 
     val envValue = Source.fromFile(s"repo/env/${env}.json").mkString
     val envData = mapper.readValue(envValue, classOf[Environment])
-
-    val depsData = resolveDependencies("repo/deps/jars.yml")
-
-    val data = mapper.writeValueAsBytes(new ExecData(envData, depsData))
+    val depFiles = new File("repo/deps").listFiles.filter(_.isFile).toList
+    val allDepsData = for (f <- depFiles) yield resolveDependencies(f.getPath)
+    val mergedDepsData = mergeDependencies(allDepsData)
+    val data = mapper.writeValueAsBytes(new ExecData(envData, mergedDepsData))
     ByteString.copyFrom(data)
   }
 
