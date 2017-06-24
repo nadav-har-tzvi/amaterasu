@@ -27,6 +27,7 @@ object SparkRunnerHelper {
       .set("spark.executor.instances", "2")
       .set("spark.cores.max", "5")
       .set("spark.hadoop.validateOutputSpecs", "false")
+      .set("spark.submit.pyFiles", "miniconda/pkgs")
     val sc = new SparkContext(conf)
     for (jar <- jars) {
       sc.addJar(jar) // and this is how my childhood was ruined :(

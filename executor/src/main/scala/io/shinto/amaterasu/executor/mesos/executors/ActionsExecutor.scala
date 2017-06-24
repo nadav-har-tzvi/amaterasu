@@ -88,7 +88,7 @@ class ActionsExecutor extends Executor with Logging {
       val taskData = mapper.readValue(new ByteArrayInputStream(taskInfo.getData.toByteArray), classOf[TaskData])
 
       val actionSource = taskData.src
-
+      notifier.info(s"taskData: $taskData")
       val status = TaskStatus.newBuilder
         .setTaskId(taskInfo.getTaskId)
         .setState(TaskState.TASK_RUNNING).build()

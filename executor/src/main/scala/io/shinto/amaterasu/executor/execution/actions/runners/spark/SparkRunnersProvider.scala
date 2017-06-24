@@ -50,7 +50,7 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
 
     runners.put(sparkScalaRunner.getIdentifier, sparkScalaRunner)
 
-    val pySparkRunner = PySparkRunner(data.env, jobId, notifier, sparkContext, "")
+    val pySparkRunner = PySparkRunner(data.env, jobId, notifier, sparkContext, "spark-1.6.1-2/python/pyspark")
     runners.put(pySparkRunner.getIdentifier(), pySparkRunner)
   }
 
@@ -60,10 +60,11 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
 
   private def installAnacondaPackage(pythonPackage: PythonPackage): Unit = {
     log.info(s"installAnacondaPackage: $pythonPackage")
-    if (pythonPackage.channel.getOrElse("anaconda") == "anaconda") {
+    val channel = pythonPackage.channel.getOrElse("anaconda")
+    if (channel == "anaconda") {
       Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda install -y ${pythonPackage.packageId}") ! shellLogger
     } else {
-      Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda install -y -c ${pythonPackage.channel} ${pythonPackage.packageId}") ! shellLogger
+      Seq("bash", "-c", s"$$PWD/miniconda/bin/python -m conda install -y -c $channel ${pythonPackage.packageId}") ! shellLogger
     }
   }
 
@@ -79,10 +80,16 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
     Seq("bash", "-c", "sh Miniconda2-latest-Linux-x86_64.sh -b -p $PWD/miniconda") ! shellLogger
     Seq("bash", "-c", "$PWD/miniconda/bin/python -m conda install -y conda-build") ! shellLogger
     Seq("bash", "-c", "$PWD/miniconda/bin/python -m conda update -y") ! shellLogger
+    Seq("bash", "-c", "ln -s $PWD/spark-1.6.1-2/python/pyspark $PWD/miniconda/pkgs/pyspark") ! shellLogger
+
   }
 
   private def loadPythonDependencies(deps: Dependencies) = {
     installAnacondaOnNode()
+    val py4jPackage = PythonPackage("py4j", channel=Option("conda-forge"))
+    installAnacondaPackage(py4jPackage)
+    val codegenPackage = PythonPackage("codegen", channel=Option("auto"))
+    installAnacondaPackage(codegenPackage)
     if (deps.pythonPackages.isDefined) {
       try {
         log.info(s"deps: $deps")

@@ -1,6 +1,6 @@
 package io.shinto.amaterasu.executor.execution.actions.runners.spark.PySpark
 
-import java.io.OutputStream
+import java.io.{File, OutputStream, PrintWriter}
 
 import io.shinto.amaterasu.common.execution.actions.Notifier
 import io.shinto.amaterasu.common.logging.Logging
@@ -23,9 +23,14 @@ class PySparkRunner extends AmaterasuRunner with Logging {
   override def getIdentifier(): String = "pyspark"
 
   override def executeSource(sourcePath: String, actionName: String): Unit = {
+    val f = new File("/tmp/source.txt")
+    val pw = new PrintWriter(f)
+    pw.println(sourcePath)
+    pw.println(actionName)
+    pw.close()
     notifier.info(s"executeSource { sourcePath: $sourcePath, actionName: $actionName}")
-    val source = Source.fromFile(sourcePath).getLines().mkString("\n")
-    interpretSources(source, actionName)
+//    val source = Source.fromFile(sourcePath).getLines().mkString("\n")
+    interpretSources(sourcePath, actionName)
   }
 
   def interpretSources(source: String, actionName: String) = {
@@ -39,6 +44,7 @@ class PySparkRunner extends AmaterasuRunner with Logging {
 
     do {
       res = resQueue.getNext()
+      notifier.info(s"res: $res")
       res.resultType match {
         case ResultType.success =>
           notifier.success(res.statement)
@@ -65,11 +71,11 @@ object PySparkRunner {
 
     PySparkEntryPoint.start(sc, jobId, env, SparkEnv.get)
     val port = PySparkEntryPoint.getPort()
-    val proc = Process(Seq("python", getClass.getResource("/spark_intp.py").getPath, port.toString), None,
+    val proc = Process(Seq("spark-1.6.1-2/bin/pyspark", "spark_intp.py", port.toString), None,
       "PYTHONPATH" -> pypath,
-      "PYSPARK_PYTHON" -> "/usr/bin/python",
+      "PYSPARK_PYTHON" -> "miniconda/bin/python",
       "PYTHONHASHSEED" -> 0.toString) #> System.out
-
+    notifier.info(s"pyspark process $proc")
     proc.run()
 
 
