@@ -4,24 +4,21 @@ import java.io.{ByteArrayOutputStream, File, PrintWriter, StringWriter}
 
 import io.shinto.amaterasu.common.dataobjects.ExecData
 import io.shinto.amaterasu.common.execution.actions.Notifier
-import io.shinto.amaterasu.common.execution.dependencies.{Dependencies, PythonPackage}
+import io.shinto.amaterasu.common.execution.dependencies.{Artifact, Dependencies, PythonPackage, Repo}
 import io.shinto.amaterasu.common.logging.Logging
 import io.shinto.amaterasu.sdk.{AmaterasuRunner, RunnersProvider}
 import io.shinto.amaterasu.executor.execution.actions.runners.spark.PySpark.PySparkRunner
-
 import org.apache.spark.repl.amaterasu.ReplUtils
 import org.apache.spark.repl.amaterasu.runners.spark.SparkScalaRunner
-
 import org.eclipse.aether.util.artifact.JavaScopes
-
 import org.sonatype.aether.repository.RemoteRepository
 import org.sonatype.aether.util.artifact.DefaultArtifact
-
 import com.jcabi.aether.Aether
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ListBuffer
 import sys.process._
 
 /**
@@ -116,7 +113,7 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
     // adding a local repo because Aether needs one
     val repo = new File(System.getProperty("java.io.tmpdir"), "ama-repo")
 
-    val remotes = deps.repos.map(r =>
+    val remotes = deps.repos.getOrElse(new ListBuffer[Repo]).map(r =>
       new RemoteRepository(
         r.id,
         r.`type`,
@@ -126,7 +123,7 @@ class SparkRunnersProvider extends RunnersProvider with Logging {
     val aether = new Aether(remotes, repo)
     loadPythonDependencies(deps)
 
-    deps.artifacts.flatMap(a => {
+    deps.artifacts.getOrElse(new ListBuffer[Artifact]).flatMap(a => {
       aether.resolve(
         new DefaultArtifact(a.groupId, a.artifactId, "", "jar", a.version),
         JavaScopes.RUNTIME

@@ -57,11 +57,11 @@ object DataLoader extends Logging {
     val artifacts = new ListBuffer[Artifact]
     val pyPackages = new ListBuffer[PythonPackage]
     for (dep <- allDepsData) {
-      reps ++= dep.repos
-      artifacts ++= dep.artifacts
+      reps ++= dep.repos.getOrElse(new ListBuffer[Repo])
+      artifacts ++= dep.artifacts.getOrElse(new ListBuffer[Artifact])
       pyPackages ++= dep.pythonPackages.getOrElse(new ListBuffer[PythonPackage])
     }
-    val mergedDeps = Dependencies(reps, artifacts.toList, Option(pyPackages.toList))
+    val mergedDeps = Dependencies(Option(reps), Option(artifacts.toList), Option(pyPackages.toList))
     mergedDeps
   }
 
@@ -73,7 +73,7 @@ object DataLoader extends Logging {
     val envValue = Source.fromFile(s"repo/env/${env}.json").mkString
     val envData = mapper.readValue(envValue, classOf[Environment])
     val depFiles = new File("repo/deps").listFiles.filter(_.isFile).toList
-    val allDepsData = for (f <- depFiles) yield resolveDependencies(f.getPath)
+    val allDepsData = for (f <- depFiles) yield resolveDependencies(f.getAbsolutePath)
     val mergedDepsData = mergeDependencies(allDepsData)
     val data = mapper.writeValueAsBytes(new ExecData(envData, mergedDepsData))
     ByteString.copyFrom(data)

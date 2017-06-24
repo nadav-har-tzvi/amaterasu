@@ -10,7 +10,7 @@ import ast
 import codegen
 import os
 from runtime import AmaContext
-os.chdir(os.getcwd() + '/executor/build/resources/test/')
+os.chdir(os.getcwd() + '/build/resources/test/')
 import tarfile
 tar = tarfile.open('pyspark.tar.gz', 'r')
 tar.extractall()
