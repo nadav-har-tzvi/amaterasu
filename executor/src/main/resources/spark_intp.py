@@ -25,6 +25,9 @@ from pyspark.broadcast import Broadcast
 from pyspark.serializers import MarshalSerializer, PickleSerializer
 from pyspark.sql import SparkSession
 
+with open('/tmp/test.txt', 'w') as f:
+  f.write('HIIIIIIIIIIIII')
+
 client = GatewayClient(port=int(sys.argv[1]))
 gateway = JavaGateway(client, auto_convert = True)
 entry_point = gateway.entry_point
