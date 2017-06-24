@@ -5,18 +5,17 @@
 #
 # with open('/Users/roadan/pypath.txt', 'a') as the_file:
 #     the_file.write(user_paths)
-
+import sys
 import ast
 import codegen
 import os
-import sys
 from runtime import AmaContext
 os.chdir(os.getcwd() + '/build/resources/test/')
-import zipfile
-zip = zipfile.ZipFile('pyspark.zip')
-zip.extractall()
-zip = zipfile.ZipFile('py4j-0.10.4-src.zip', 'r')
-zip.extractall()
+import tarfile
+tar = tarfile.open('pyspark.tar.gz', 'r')
+tar.extractall()
+tar = tarfile.open('py4j.tar.gz', 'r')
+tar.extractall()
 # sys.path.insert(1, os.getcwd() + '/executor/src/test/resources/pyspark')
 # sys.path.insert(1, os.getcwd() + '/executor/src/test/resources/py4j')
 from py4j.java_gateway import JavaGateway, GatewayClient, java_import
@@ -30,8 +29,7 @@ from pyspark import accumulators
 from pyspark.accumulators import Accumulator, AccumulatorParam
 from pyspark.broadcast import Broadcast
 from pyspark.serializers import MarshalSerializer, PickleSerializer
-from pyspark.sql import SparkSession
-
+from pyspark.sql import SQLContext, HiveContext, Row, SchemaRDD
 client = GatewayClient(port=int(sys.argv[1]))
 gateway = JavaGateway(client, auto_convert = True)
 entry_point = gateway.entry_point
@@ -52,11 +50,9 @@ jsc = entry_point.getJavaSparkContext()
 conf = SparkConf(_jvm = gateway.jvm, _jconf = jconf)
 
 sc = SparkContext(jsc=jsc, gateway=gateway, conf=conf)
+sqlContext = SQLContext(sparkContext=sc, sqlContext=entry_point.getSqlContext())
 
-spark = SparkSession(sc, entry_point.getSparkSession())
-sqlc = spark._wrapped
-
-ama_context = AmaContext(sc, sqlc)
+ama_context = AmaContext(sc, sqlContext)
 
 while True:
     actionData = queue.getNext()
