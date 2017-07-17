@@ -19,7 +19,6 @@ package org.apache.amaterasu.leader
 import java.util.concurrent.{BlockingQueue, ConcurrentHashMap, LinkedBlockingQueue}
 
 import com.github.nscala_time.time.Imports._
-import org.apache.amaterasu.common.dataobjects.JobData
 
 import scala.collection.JavaConversions
 
