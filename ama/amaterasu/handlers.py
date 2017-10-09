@@ -8,16 +8,24 @@ Currently, we handle the following tasks:
 3. Run an Amaterasu pipeline, by invoking Amaterasu's scala code.
 
 """
-import common
+from . import common
+from .compat import *
+from six.moves import configparser, cStringIO, input
+from amaterasu.repository import AmaRepository
 import abc
 import os
+import sys
 
-from repository import AmaRepository
-from configparser import ConfigParser
-from collections import namedtuple
 
-git_config = ConfigParser()
-git_config.read(os.path.expanduser('~/.gitconfig'))
+if sys.version_info[0] == 2:
+    git_parser = configparser.SafeConfigParser()
+    data = cStringIO()
+    data.write('\n'.join(line.strip() for line in open(os.path.expanduser('~/.gitconfig'))))
+    data.seek(0)
+    git_parser.readfp(data)
+else:
+    git_parser = configparser.ConfigParser()
+    git_parser.read(os.path.expanduser('~/.gitconfig'))
 
 
 class HandlerError(Exception):
@@ -77,18 +85,19 @@ class InitRepositoryHandler(BaseHandler):
             if not os.path.exists(base_path):
                 raise HandlerError("The base path: \"{}\" doesn't exist!".format(base_path))
 
-    def _config_user(self):
+    @staticmethod
+    def _config_user():
         """
         First we try to get the user details from the global .gitconfig
         If we fail at that, then we will ask the user for his credentials
         :return:
         """
         try:
-            username = git_config.get('user', 'name')
+            username = git_parser.get('user', 'name')
         except KeyError:
             username = ''
         try:
-            email = git_config.get('user', 'email')
+            email = git_parser.get('user', 'email')
         except KeyError:
             email = ''
 
@@ -107,10 +116,12 @@ class InitRepositoryHandler(BaseHandler):
         return common.User(new_name, new_email)
 
     def handle(self):
+        print("Setting up an Amaterasu job repository at {}".format(self.dir_path))
         user = self._config_user()
         repo = AmaRepository(self.dir_path, user)
         repo.build()
         repo.commit()
+        print("Amaterasu job repository set up successfully")
 
 
 class RunPipelineHandler(BaseHandler):

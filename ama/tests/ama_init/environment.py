@@ -2,6 +2,8 @@ import os
 import shutil
 import stat
 import errno
+from tests.compat import *
+from amaterasu.compat import *
 
 
 def handleRemoveReadonly(func, path, exc):
@@ -18,7 +20,7 @@ def before_scenario(context, scenario):
     context.stats_after = {}
     try:
         shutil.rmtree(os.path.abspath('tmp'), onerror=handleRemoveReadonly)
-    except FileNotFoundError:
+    except (FileNotFoundError, WindowsError):
         pass
     os.mkdir(os.path.abspath('tmp'))
 

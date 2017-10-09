@@ -8,3 +8,4 @@ pyfakefs==3.2
 pygit2==0.26.0
 PyHamcrest==1.9.0
 six==1.11.0
+mock; python_version <= '2.7'

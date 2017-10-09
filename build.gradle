@@ -25,9 +25,15 @@ project(':leader')
 project(':common')
 project(':executor')
 
+task copyCLI(type: Copy) {
+    from 'ama'
+    into 'build/amaterasu/ama'
+}
+
 task buildHomeDir() {
     dependsOn subprojects.collect { getTasksByName('shadowJar', true) }
     dependsOn subprojects.collect { getTasksByName('copyToHome', true) }
+    dependsOn copyCLI
 }
 
 distributions {

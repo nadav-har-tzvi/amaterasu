@@ -1,6 +1,6 @@
-import os
+from amaterasu import common
 import pygit2
-import common
+import os
 
 
 class AmaRepository:
@@ -36,7 +36,6 @@ class AmaRepository:
         if not os.path.exists('{}/{}'.format(default_env, common.SPARK_CONF)):
             with open('{}/{}'.format(default_env, common.SPARK_CONF), 'w') as f:
                 f.write(common.RESOURCES[common.SPARK_CONF])
-
 
     def build(self):
         self.git_repository = pygit2.init_repository(self.root_path)

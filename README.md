@@ -49,6 +49,15 @@ Configuring amaterasu is very simple. Before running amaterasu, open the `amater
 
 ## Running a Job
 
+First, you need an Amaterasu-compatible git repository.
+You can achieve this in two ways:
+1. Fork or clone the [job sample repository](https://github.com/shintoio/amaterasu-job-sample.git)
+2. Use our CLI, it is easy, but requires a little bit of installation:
+   1. Install dependencies: libffi-dev, libgit2==0.26.x
+   2. We recommend using a virtualenv to run Amaterasu, it is a good practice anyway.
+   3.     pip install -r <amaterasu-basedir>/ama/requirements.txt
+   4.     alias ama="python
+
 To run an amaterasu job, run the following command in the top-level amaterasu directory:
 
 ```

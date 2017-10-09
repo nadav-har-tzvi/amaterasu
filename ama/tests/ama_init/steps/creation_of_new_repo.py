@@ -1,12 +1,12 @@
+import os
+import sys
+from amaterasu import common
+import pygit2
 from behave import *
 from hamcrest import *
-import handlers
-import common
-import os
-import pygit2
-import  sys
-from unittest.mock import patch
-
+from amaterasu import handlers
+from six.moves import mock
+from amaterasu.compat import *
 
 class MockArgs:
     def __init__(self, path):
@@ -19,16 +19,18 @@ def step_impl(context, path):
     :type context: behave.runner.Context
     """
     abs_path = os.path.abspath(path)
+    print(abs_path)
     if not os.path.exists(abs_path):
         os.makedirs(abs_path, exist_ok=True)
     context.given_path = abs_path
 
 
 def collect_stats(context, path):
-    for _, dirs, files in os.walk(path):
+    for base_dir, dirs, files in os.walk(path):
+        if base_dir.endswith('.git'): continue
         for f in files:
             try:
-                f_path = os.path.join(path, f)
+                f_path = os.path.join(base_dir, f)
                 stat = os.lstat(f_path)
                 context.stats_after[f_path] = stat
             except FileNotFoundError:
@@ -36,10 +38,9 @@ def collect_stats(context, path):
         for d in dirs:
             if d == '.git': continue
             try:
-                d_path = os.path.join(path, d)
+                d_path = os.path.join(base_dir, d)
                 stat = os.lstat(d_path)
                 context.stats_after[d_path] = stat
-                collect_stats(context, d_path)
             except FileNotFoundError:
                 pass
 
@@ -51,7 +52,7 @@ def step_impl(context):
     """
     try:
         args = MockArgs(context.given_path)
-        with patch('handlers.InitRepositoryHandler._config_user', return_value=common.User('Naruto Uzumaki', 'naruto@konoha.village')):
+        with mock.patch('ama.handlers.InitRepositoryHandler._config_user', return_value=common.User('Naruto Uzumaki', 'naruto@konoha.village')):
             handler = handlers.InitRepositoryHandler(args)
             handler.handle()
         collect_stats(context, context.given_path)

@@ -1,5 +1,6 @@
 import os
 
+
 INIT = 'init'
 RUN = 'run'
 MAKI = 'maki.yml'
@@ -20,7 +21,6 @@ class User:
 
 
 class Resources(dict):
-
     BASE_DIR = '{}/resources'.format(os.path.dirname(__file__))
 
     def __init__(self):

@@ -1,11 +1,9 @@
-#!/usr/bin/env
-
-import argparse
-import os
-import colorama
-import handlers
-import common
+from . import common
 from colorama import Fore
+from amaterasu import handlers
+import argparse
+import colorama
+import os
 
 colorama.init()
 lines = []
@@ -35,6 +33,8 @@ init_parser.set_defaults(which=common.INIT)
 run_parser = subparsers.add_parser(common.RUN, help='Run an Amaterasu pipeline')
 run_parser.set_defaults(which=common.RUN)
 
-args = parser.parse_args()
-if hasattr(args, 'which'):
-    handlers.handle_args(args)
+
+def main():
+    args = parser.parse_args()
+    if hasattr(args, 'which'):
+        handlers.handle_args(args)
