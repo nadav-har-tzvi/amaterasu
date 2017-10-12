@@ -30,6 +30,10 @@ init_parser = subparsers.add_parser(common.INIT, help="Scaffolding for a new Ama
 init_parser.add_argument('path', nargs='?', default=os.getcwd())
 init_parser.set_defaults(which=common.INIT)
 
+init_parser = subparsers.add_parser(common.UPDATE, help="Update an existing repository based on a maki file")
+init_parser.add_argument('path', nargs='?', default=os.getcwd())
+init_parser.set_defaults(which=common.UPDATE)
+
 run_parser = subparsers.add_parser(common.RUN, help='Run an Amaterasu pipeline')
 run_parser.set_defaults(which=common.RUN)
 

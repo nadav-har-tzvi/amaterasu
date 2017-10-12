@@ -7,10 +7,7 @@ from hamcrest import *
 from amaterasu import handlers
 from six.moves import mock
 from amaterasu.compat import *
-
-class MockArgs:
-    def __init__(self, path):
-        self.path = path
+from tests.utils import MockArgs, collect_stats
 
 
 @given('The relative path "{path}"')
@@ -19,30 +16,9 @@ def step_impl(context, path):
     :type context: behave.runner.Context
     """
     abs_path = os.path.abspath(path)
-    print(abs_path)
     if not os.path.exists(abs_path):
         os.makedirs(abs_path, exist_ok=True)
     context.given_path = abs_path
-
-
-def collect_stats(context, path):
-    for base_dir, dirs, files in os.walk(path):
-        if base_dir.endswith('.git'): continue
-        for f in files:
-            try:
-                f_path = os.path.join(base_dir, f)
-                stat = os.lstat(f_path)
-                context.stats_after[f_path] = stat
-            except FileNotFoundError:
-                pass
-        for d in dirs:
-            if d == '.git': continue
-            try:
-                d_path = os.path.join(base_dir, d)
-                stat = os.lstat(d_path)
-                context.stats_after[d_path] = stat
-            except FileNotFoundError:
-                pass
 
 
 @when("InitRepository handler is invoked with the given path")
@@ -52,7 +28,7 @@ def step_impl(context):
     """
     try:
         args = MockArgs(context.given_path)
-        with mock.patch('ama.handlers.InitRepositoryHandler._config_user', return_value=common.User('Naruto Uzumaki', 'naruto@konoha.village')):
+        with mock.patch('amaterasu.handlers.InitRepositoryHandler._config_user', return_value=common.User('Naruto Uzumaki', 'naruto@konoha.village')):
             handler = handlers.InitRepositoryHandler(args)
             handler.handle()
         collect_stats(context, context.given_path)
@@ -140,20 +116,6 @@ def step_impl(context, given_path, given_file):
         pass
     stat = os.lstat(file_path)
     context.stats_before[file_path] = stat
-
-
-@step("None of the other files should have changed")
-def step_impl(context):
-    """
-    :type context: behave.runner.Context
-    """
-    paths_to_check = set(context.stats_before.keys()) - set(context.changed_paths)
-    for path in paths_to_check:
-        before = context.stats_before[path]
-        stat = os.lstat(path)
-        assert_that(before.st_mtime, is_(equal_to(stat.st_mtime)))
-        assert_that(before.st_ctime, is_(equal_to(stat.st_ctime)))
-
 
 @given('The invalid absolute path "{given_path}"')
 def step_impl(context, given_path):

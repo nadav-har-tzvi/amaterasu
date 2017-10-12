@@ -2,6 +2,7 @@ import os
 
 
 INIT = 'init'
+UPDATE = 'update'
 RUN = 'run'
 MAKI = 'maki.yml'
 JOB_FILE = 'job.yml'
@@ -23,8 +24,10 @@ class User:
 class Resources(dict):
     BASE_DIR = '{}/resources'.format(os.path.dirname(__file__))
 
-    def __init__(self):
+    def __init__(self, path=None):
         super(Resources, self).__init__()
+        if path:
+            self.BASE_DIR = '{}/resources'.format(os.path.abspath(path))
         for (_, _, files) in os.walk(self.BASE_DIR):
             for f in files:
                 with open('{}/{}'.format(self.BASE_DIR, f), 'r') as fd:

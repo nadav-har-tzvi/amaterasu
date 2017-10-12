@@ -4,6 +4,7 @@ import stat
 import errno
 from tests.compat import *
 from amaterasu.compat import *
+from amaterasu.common import Resources
 
 
 def handleRemoveReadonly(func, path, exc):
@@ -13,6 +14,10 @@ def handleRemoveReadonly(func, path, exc):
         func(path)
     else:
         raise exc[0]
+
+
+def before_all(context):
+    context.test_resources = Resources(os.path.join(os.getcwd(), 'tests'))
 
 
 def before_scenario(context, scenario):
