@@ -11,8 +11,9 @@ def str_ok(x):
 
 
 class MockArgs:
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, **kwargs):
+        for kwarg, value in kwargs.items():
+            setattr(self, kwarg, value)
 
 def collect_stats(context, path):
     for base_dir, dirs, files in os.walk(path):
